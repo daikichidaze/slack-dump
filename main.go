@@ -63,6 +63,10 @@ func main() {
 			Name:  "takameron",
 			Email: "tech@takameron.info",
 		},
+		{
+			Name:  "daikichi",
+			Email: "dkch.yoshioka.t@gmail.com",
+		},
 	}
 	app.Version = "1.3.0"
 	app.Action = func(c *cli.Context) error {
@@ -199,7 +203,7 @@ func dump(api *slack.Client, dir string, rooms []string) {
 		} else if c.IsChannel && !c.IsGroup && !c.IsPrivate {
 			kind = "channel"
 			name = c.Name
-		} else if (!c.IsChannel && !c.IsGroup) || (c.IsChannel && c.IsPrivate) {
+		} else if c.IsPrivate {
 			kind = "private_channel"
 			name = c.Name
 		}
@@ -221,6 +225,14 @@ func dump(api *slack.Client, dir string, rooms []string) {
 	check(err)
 	err = ioutil.WriteFile(path.Join(dir, "users.json"), data_users, 0644)
 	check(err)
+}
+
+func debugWrightText(filename, content string) {
+	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_APPEND, 0666)
+	check(err)
+	defer file.Close()
+	fmt.Fprintln(file, content)
+
 }
 
 func fetchChannel(api *slack.Client) []slack.Channel {
