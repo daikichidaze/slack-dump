@@ -189,20 +189,25 @@ func dump(api *slack.Client, dir string, rooms []string) {
 
 	var public_channels []slack.Channel
 	var private_channels []slack.Channel
+	var dm_channels []slack.Channel
 
 	for _, c := range channels {
 		kind := ""
 		name := ""
 		if c.IsIM {
 			kind = "direct_message"
+			name = c.ID
 			for _, usr := range users {
 				if c.User == usr.ID {
-					name = usr.Name
+					c.Name = usr.Name
 				}
 			}
+			dm_channels = append(dm_channels, c)
+
 		} else if c.IsMpIM {
 			kind = "direct_message"
 			name = c.Name
+			dm_channels = append(dm_channels, c)
 		} else if c.IsChannel && !c.IsGroup && !c.IsPrivate {
 			kind = "channel"
 			name = c.Name
@@ -229,6 +234,11 @@ func dump(api *slack.Client, dir string, rooms []string) {
 	data_private_channels, err := MarshalIndent(private_channels, "", "    ")
 	check(err)
 	err = ioutil.WriteFile(path.Join(dir, "groups.json"), data_private_channels, 0644)
+	check(err)
+
+	data_dm_channels, err := MarshalIndent(dm_channels, "", "    ")
+	check(err)
+	err = ioutil.WriteFile(path.Join(dir, "dms.json"), data_dm_channels, 0644)
 	check(err)
 
 	data_users, err := MarshalIndent(users, "", "    ")
