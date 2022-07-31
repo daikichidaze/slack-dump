@@ -187,6 +187,9 @@ func dump(api *slack.Client, dir string, rooms []string) {
 	users, err := api.GetUsers()
 	check(err)
 
+	var public_channels []slack.Channel
+	var private_channels []slack.Channel
+
 	for _, c := range channels {
 		kind := ""
 		name := ""
@@ -203,9 +206,11 @@ func dump(api *slack.Client, dir string, rooms []string) {
 		} else if c.IsChannel && !c.IsGroup && !c.IsPrivate {
 			kind = "channel"
 			name = c.Name
+			public_channels = append(public_channels, c)
 		} else if c.IsPrivate {
 			kind = "private_channel"
 			name = c.Name
+			private_channels = append(private_channels, c)
 		}
 
 		ok := len(rooms) == 0 || (len(rooms) > 0 && hasArrayItem(rooms, name))
@@ -216,9 +221,14 @@ func dump(api *slack.Client, dir string, rooms []string) {
 		}
 	}
 
-	data_channels, err := MarshalIndent(channels, "", "    ")
+	data_channels, err := MarshalIndent(public_channels, "", "    ")
 	check(err)
 	err = ioutil.WriteFile(path.Join(dir, "channels.json"), data_channels, 0644)
+	check(err)
+
+	data_private_channels, err := MarshalIndent(private_channels, "", "    ")
+	check(err)
+	err = ioutil.WriteFile(path.Join(dir, "groups.json"), data_private_channels, 0644)
 	check(err)
 
 	data_users, err := MarshalIndent(users, "", "    ")
