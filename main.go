@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -291,6 +292,15 @@ func dumpChannel(api *slack.Client, id string, name string, kind string, dir str
 		return
 	}
 
+	for i, v := range messages {
+		if v.ReplyCount > 0 {
+			replies, reply_messages := fetchReplies(api, id, v.Timestamp)
+			messages[i].Replies = replies
+			messages = append(messages, reply_messages...)
+		}
+	}
+	sort.Slice(messages, func(i, j int) bool { return messages[i].Timestamp < messages[j].Timestamp })
+
 	currentFilename := ""
 	channelPath := path.Join(kind, name)
 	var currentMessages []slack.Message
@@ -305,6 +315,7 @@ func dumpChannel(api *slack.Client, id string, name string, kind string, dir str
 
 		currentMessages = append(currentMessages, message)
 	}
+
 	writeMessagesFile(currentMessages, dir, channelPath, currentFilename)
 }
 
@@ -334,7 +345,62 @@ func fetchHistory(api *slack.Client, ID string) []slack.Message {
 		}
 	}
 
-	return messages
+	var messages_result = make([]slack.Message, 0)
+
+	for _, v := range messages {
+		if v.SubType != "thread_broadcast" {
+			messages_result = append(messages_result, v)
+		}
+	}
+
+	return messages_result
+}
+
+func fetchReplies(api *slack.Client, ID string, Timestamp string) ([]slack.Reply, []slack.Message) {
+	repliesParams := slack.GetConversationRepliesParameters{}
+	repliesParams.ChannelID = ID
+	repliesParams.Timestamp = Timestamp
+
+	msg, hasMore, nextCursor, err := api.GetConversationReplies(&repliesParams)
+	check(err)
+
+	messages := msg
+	if len(messages) > 0 {
+		for {
+			if !hasMore {
+				break
+			}
+
+			repliesParams.Cursor = nextCursor
+			msg, hasMore, nextCursor, err = api.GetConversationReplies(&repliesParams)
+			check(err)
+			length := len(msg)
+			if length > 0 {
+				repliesParams.Cursor = nextCursor
+				messages = append(messages, msg...)
+
+			}
+		}
+	}
+
+	var replies []slack.Reply
+	for _, v := range messages {
+
+		var user string
+		if v.User != "" {
+			user = v.User
+		} else {
+			user = v.BotID
+		}
+
+		reply := slack.Reply{
+			User:      user,
+			Timestamp: v.Timestamp,
+		}
+		replies = append(replies, reply)
+	}
+
+	return replies[1:], messages[1:]
 }
 
 func parseTimestamp(timestamp string) *time.Time {
@@ -370,6 +436,7 @@ func writeMessagesFile(messages []slack.Message, dir string, channelPath string,
 	check(err)
 	err = ioutil.WriteFile(path.Join(channelDir, filename), data, 0644)
 	check(err)
+
 }
 
 func hasArrayItem(arr []string, str string) bool {

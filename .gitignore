@@ -23,6 +23,7 @@ _testmain.go
 *.test
 *.prof
 *.zip
+*.csv
 slack-dum*
 slackdum*
 
@@ -31,3 +32,4 @@ dist/
 
 # Dependency directories
 vendor/
+*/__debug_bin
